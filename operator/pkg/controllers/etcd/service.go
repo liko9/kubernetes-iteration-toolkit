@@ -42,6 +42,11 @@ func (c *Controller) reconcileService(ctx context.Context, controlPlane *v1alpha
 				TargetPort: intstr.IntOrString{Type: intstr.Int, IntVal: 2380},
 				Protocol:   "TCP",
 			}, {
+				Port:       2381,
+				Name:       metricPortNameFor(controlPlane.ClusterName()),
+				TargetPort: intstr.IntOrString{Type: intstr.Int, IntVal: 2381},
+				Protocol:   "TCP",
+			}, {
 				Port:       2379,
 				Name:       clientPortNameFor(controlPlane.ClusterName()),
 				TargetPort: intstr.IntOrString{Type: intstr.Int, IntVal: 2379},
@@ -57,6 +62,10 @@ func serverPortNameFor(clusterName string) string {
 
 func clientPortNameFor(clusterName string) string {
 	return fmt.Sprintf("etcd-client-ssl-%s", clusterName)
+}
+
+func metricPortNameFor(clusterName string) string {
+	return fmt.Sprintf("etcd-metric-%s", clusterName)
 }
 
 func ServiceNameFor(clusterName string) string {

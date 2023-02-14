@@ -206,7 +206,7 @@ func (c *CoreDNS) deployment(ctx context.Context) error {
 						ImagePullPolicy: v1.PullIfNotPresent,
 						Resources: v1.ResourceRequirements{
 							Requests: map[v1.ResourceName]resource.Quantity{
-								v1.ResourceCPU:    resource.MustParse("1"),
+								v1.ResourceCPU:    resource.MustParse("100m"),
 								v1.ResourceMemory: resource.MustParse("70"),
 							},
 							Limits: map[v1.ResourceName]resource.Quantity{

@@ -220,7 +220,7 @@ func kubeProxyPodSpecFor(controlPlane *v1alpha1.ControlPlane) v1.PodSpec {
 				Image: imageprovider.KubeProxy(controlPlane.Spec.KubernetesVersion),
 				Resources: v1.ResourceRequirements{
 					Requests: map[v1.ResourceName]resource.Quantity{
-						v1.ResourceCPU: resource.MustParse("1"),
+						v1.ResourceCPU: resource.MustParse("100m"),
 					},
 				},
 				SecurityContext: &v1.SecurityContext{
