@@ -90,18 +90,18 @@ func (c *Controller) deleteLaunchTemplate(ctx context.Context, templateName stri
 
 func (c *Controller) createLaunchTemplate(ctx context.Context, dataplane *v1alpha1.DataPlane) error {
 	var (
-		securityGroupID string
+		securityGroupIDs []*string
 		err             error
 	)
 	if len(dataplane.Spec.SecurityGroupSelector) != 0 {
-		securityGroupID, err = c.securityGroupForSelector(ctx, dataplane.Spec.SecurityGroupSelector)
+		securityGroupIDs, err = c.securityGroupForSelector(ctx, dataplane.Spec.SecurityGroupSelector)
 		if err != nil {
 			return fmt.Errorf("getting security groups by selector, %w", err)
 		}
 	} else {
 		// Currently, we get the same security group assigned to control plane instances
 		// At some point, we will be creating dataplane specific security groups
-		securityGroupID, err = securitygroup.New(c.ec2api, c.kubeclient).For(ctx, dataplane.Spec.ClusterName)
+		securityGroupIDs, err = securitygroup.New(c.ec2api, c.kubeclient).For(ctx, dataplane.Spec.ClusterName)
 		if err != nil {
 			return fmt.Errorf("getting security group for control plane nodes, %w", err)
 		}
@@ -154,7 +154,7 @@ func (c *Controller) createLaunchTemplate(ctx context.Context, dataplane *v1alph
 				HttpPutResponseHopLimit: aws.Int64(2),
 			},
 			Monitoring:       &ec2.LaunchTemplatesMonitoringRequest{Enabled: ptr.Bool(true)},
-			SecurityGroupIds: []*string{ptr.String(securityGroupID)},
+			SecurityGroupIds: securityGroupIDs,
 			UserData: ptr.String(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(userData,
 				dataplane.Spec.ClusterName, dnsClusterIP, base64.StdEncoding.EncodeToString(clusterCA), apiServerEndpoint)))),
 		},
@@ -167,7 +167,7 @@ func (c *Controller) createLaunchTemplate(ctx context.Context, dataplane *v1alph
 	return nil
 }
 
-func (c *Controller) securityGroupForSelector(ctx context.Context, selector map[string]string) (string, error) {
+func (c *Controller) securityGroupForSelector(ctx context.Context, selector map[string]string) ([]*string, error) {
 	filters := []*ec2.Filter{}
 	// Filter by selector
 	for key, value := range selector {
@@ -185,12 +185,13 @@ func (c *Controller) securityGroupForSelector(ctx context.Context, selector map[
 	}
 	output, err := c.ec2api.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{Filters: filters})
 	if err != nil {
-		return "", fmt.Errorf("describing security groups %+v, %w", filters, err)
+		return []*string{}, fmt.Errorf("describing security groups %+v, %w", filters, err)
 	}
-	if len(output.SecurityGroups) != 1 {
-		return "", fmt.Errorf("wrong number of security groups by selector, %d", len(output.SecurityGroups))
+	securityGroups := make([]*string, 0, len(output.SecurityGroups))
+	for _, sg := range output.SecurityGroups {
+		securityGroups = append(securityGroups, sg.GroupId)
 	}
-	return aws.StringValue(output.SecurityGroups[0].GroupId), nil
+	return securityGroups, nil
 }
 
 func (c *Controller) amiID(ctx context.Context, dataplane *v1alpha1.DataPlane) (string, error) {
